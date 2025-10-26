@@ -1,7 +1,8 @@
+ require("dotenv").config();
 
 const config = {
     database: {
-        dbConnectionString:process.env.MONGODB_CONNECTION_STRING || "mongodb://127.0.0.1:27017/loan"
+        dbConnectionString:process.env.MongoDB_URL //|| "mongodb://127.0.0.1:27017/loan"
     },
     http: {
         port: 8080
