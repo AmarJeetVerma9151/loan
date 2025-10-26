@@ -149,38 +149,44 @@ class AuthController {
     }
 
     async otpLogin(req, res) {
-        try {
-            const { otp } = req.body;
-            if (!req.body[this.otpField]) {
-                return res.status(400).json({ message: `${this.otpField} is required` });
-            }
-
-            let query = {};
-            query[this.otpField] = req.body[this.otpField];
-
-            let user = await this.User.findOne(query).lean();
-
-            if (!user) return res.status(404).json({ message: 'User not found' });
-            if (user.role == "admin" && !user.isVerified) return res.status(401).json({ message: 'User not verified' });
-            if (user.isBlocked) return res.status(401).json({ message: 'User is blocked' });
-            if (user.otp[user.otp.length - 1].otp !== otp) return res.status(401).json({ message: 'Invalid OTP' });
-
-            const token = this.generateToken({
-                _id: user._id,
-                email: user.email,
-                mobile: user.mobile,
-                role: user.role,
-            });
-
-            delete user.otp;
-            delete user.password;
-
-            return res.status(200).json({ message: 'OTP login successful', token, user });
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ message: 'Server error', error: err.message });
-        }
+  try {
+    const { otp } = req.body;
+    if (!req.body[this.otpField]) {
+      return res.status(400).json({ message: `${this.otpField} is required` });
     }
+
+    const query = { [this.otpField]: req.body[this.otpField] };
+    const user = await this.User.findOne(query); // ✅ no .lean()
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === "admin" && !user.isVerified) return res.status(401).json({ message: 'User not verified' });
+    if (user.isBlocked) return res.status(401).json({ message: 'User is blocked' });
+
+    if (!user.otp || user.otp.length === 0) {
+      return res.status(400).json({ message: "No OTP found for this user" });
+    }
+
+    const lastOtp = user.otp[user.otp.length - 1].otp;
+    if (lastOtp !== otp) {
+      return res.status(401).json({ message: 'Invalid OTP' });
+    }
+
+    const token = this.generateToken({
+      _id: user._id,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+    });
+
+    user.otp = undefined;
+    user.password = undefined;
+
+    return res.status(200).json({ message: 'OTP login successful', token, user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
 
     async sendOtp(req, res) {
         try {
